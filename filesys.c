@@ -6,6 +6,7 @@
 #include<fcntl.h>
 #include<string.h>
 #include<ctype.h>
+#include<time.h>
 #include "filesys.h"
 
 /*
@@ -64,7 +65,14 @@ void ScanBootSector()
 	bdptor.Heads = RevByte(buf[0x1a],buf[0x1b]);
 	bdptor.HiddenSectors = RevByte(buf[0x1c],buf[0x1d]);
 
-	ROOTDIR_OFFSET = bdptor.BytesPerSector + bdptor.FATs * bdptor.SectorsPerFAT * bdptor.BytesPerSector;
+	for(i = 0; i < bdptor.FATs; i++)
+		FAT_OFFSET[i] = (i == 0 ? bdptor.BytesPerSector * bdptor.ReservedSectors : FAT_OFFSET[i-1] + bdptor.SectorsPerFAT * bdptor.BytesPerSector);
+
+	ROOTDIR_OFFSET = bdptor.BytesPerSector * bdptor.ReservedSectors+ bdptor.FATs * bdptor.SectorsPerFAT * bdptor.BytesPerSector;
+	
+	DATA_OFFSET = ROOTDIR_OFFSET + bdptor.RootDirEntries * DIR_ENTRY_SIZE;
+
+
 	printf("Oem_name \t\t%s\n"
 		"BytesPerSector \t\t%d\n"
 		"SectorsPerCluster \t%d\n"
@@ -77,7 +85,8 @@ void ScanBootSector()
 		"SectorPerTrack \t\t%d\n"
 		"Heads \t\t\t%d\n"
 		"HiddenSectors \t\t%d\n"
-		"ROOTDIR_OFFSET \t\t%d\n",
+		"ROOTDIR_OFFSET \t\t%d\n"
+		"DATA_OFFSET \t\t%d\n",
 		bdptor.Oem_name,
 		bdptor.BytesPerSector,
 		bdptor.SectorsPerCluster,
@@ -90,7 +99,8 @@ void ScanBootSector()
 		bdptor.SectorsPerTrack,
 		bdptor.Heads,
 		bdptor.HiddenSectors,
-		ROOTDIR_OFFSET);
+		ROOTDIR_OFFSET,
+		DATA_OFFSET);
 }
 
 /*日期*/
@@ -273,6 +283,7 @@ int fd_ls()
 			}
 		}
 	}
+
 	return 0;
 } 
 
@@ -412,26 +423,21 @@ void ClearFatCluster(unsigned short cluster)
 */
 int WriteFat()
 {
-	if(lseek(fd,FAT_ONE_OFFSET,SEEK_SET)<0)
+	int i;	
+	for(i=0;i<bdptor.FATs;i++)
 	{
-		perror("lseek failed");
-		return -1;
+		if(lseek(fd,FAT_OFFSET[i],SEEK_SET)<0)
+		{
+			perror("lseek failed");
+			return -1;
+		}
+		if(write(fd,fatbuf,512*64)<0)
+		{
+			perror("read failed");
+			return -1;
+		}
 	}
-	if(write(fd,fatbuf,512*250)<0)
-	{
-		perror("read failed");
-		return -1;
-	}
-	if(lseek(fd,FAT_TWO_OFFSET,SEEK_SET)<0)
-	{
-		perror("lseek failed");
-		return -1;
-	}
-	if((write(fd,fatbuf,512*250))<0)
-	{
-		perror("read failed");
-		return -1;
-	}
+	
 	return 1;
 }
 
@@ -440,12 +446,12 @@ int WriteFat()
 */
 int ReadFat()
 {
-	if(lseek(fd,FAT_ONE_OFFSET,SEEK_SET)<0)
+	if(lseek(fd,FAT_OFFSET[0],SEEK_SET)<0)
 	{
 		perror("lseek failed");
 		return -1;
 	}
-	if(read(fd,fatbuf,512*250)<0)
+	if(read(fd,fatbuf,512*64)<0)
 	{
 		perror("read failed");
 		return -1;
@@ -524,15 +530,22 @@ int fd_cf(char *filename,int size)
 
 	struct Entry *pentry;
 	int ret,i=0,cluster_addr,offset;
-	unsigned short cluster,clusterno[100];
+	unsigned short cluster,clusterno[100],date=0,clock=0;
 	unsigned char c[DIR_ENTRY_SIZE];
 	int index,clustersize;
 	unsigned char buf[DIR_ENTRY_SIZE];
+	
+	time_t t;
+	struct tm *ct;
+
 	pentry = (struct Entry*)malloc(sizeof(struct Entry));
-
-
+	t=time(NULL);
+	ct = localtime(&t);
 	clustersize = (size / (CLUSTER_SIZE));
 
+	date = ((ct->tm_year - 80) << 9) + ((ct->tm_mon + 1) << 5) + ct->tm_mday;
+	clock = (ct->tm_hour << 11) + (ct->tm_min << 5) + (ct->tm_sec >> 1);
+	
 	if(size % (CLUSTER_SIZE) != 0)
 		clustersize ++;
 
@@ -609,6 +622,13 @@ int fd_cf(char *filename,int size)
 						c[i]=' ';
 
 					c[11] = 0x01;
+					//time
+					
+					c[22] = (clock & 0x00ff);
+					c[23] = ((clock & 0xff00)>>8);
+					c[24] = (date & 0x00ff);
+					c[25] = ((date & 0xff00)>>8);
+
 
 					/*写第一簇的值*/
 					c[26] = (clusterno[0] &  0x00ff);
@@ -673,6 +693,14 @@ int fd_cf(char *filename,int size)
 						c[i]=' ';
 
 					c[11] = 0x01;
+
+					//time
+					
+					c[22] = (clock & 0x00ff);
+					c[23] = ((clock & 0xff00)>>8);
+					c[24] = (date & 0x00ff);
+					c[25] = ((date & 0xff00)>>8);
+
 
 					c[26] = (clusterno[0] &  0x00ff);
 					c[27] = ((clusterno[0] & 0xff00)>>8);
