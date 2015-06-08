@@ -213,6 +213,7 @@ int fd_ls()
 	int ret, offset,cluster_addr;
 	struct Entry entry;
 	unsigned char buf[DIR_ENTRY_SIZE];
+
 	if( (ret = read(fd,buf,DIR_ENTRY_SIZE))<0)
 		perror("read entry failed");
 	if(curdir==NULL)
@@ -353,7 +354,7 @@ int ScanEntry (char *entryname,struct Entry *pentry,int mode)
 int fd_cd(char *dir)
 {
 	struct Entry *pentry;
-	int ret;
+	int ret,i;
 
 	if(!strcmp(dir,"."))
 	{
@@ -381,7 +382,10 @@ int fd_cd(char *dir)
 	}
 	dirno ++;
 	fatherdir[dirno] = curdir;
-	curdir = pentry;
+	curdir = pentry;	
+
+
+
 	return 1;
 }
 
@@ -468,12 +472,14 @@ int ReadFat()
 int fd_df(char *filename,int key)
 {
 	struct Entry *pentry;
-	int ret;
 	unsigned char c;
 	unsigned short seed,next;
 
-	pentry = (struct Entry*)malloc(sizeof(struct Entry));
+	int ret, offset,cluster_addr,tmp,ret2;
+	struct Entry entry;
 
+	pentry = (struct Entry*)malloc(sizeof(struct Entry));
+	tmp=0;
 	/*扫描当前目录查找文件*/
 	ret = ScanEntry(filename,pentry,key);
 	if(ret<0)
@@ -485,9 +491,36 @@ int fd_df(char *filename,int key)
 		free(pentry);
 		return -1;
 	}
-
+	
+	if(key==1)
+	{	
+		fd_cd(filename);
+		cluster_addr = DATA_OFFSET + (curdir->FirstCluster-2) * CLUSTER_SIZE ;
+		if((ret2 = lseek(fd,cluster_addr,SEEK_SET))<0)
+			perror("lseek cluster_addr failed");
+		offset = cluster_addr;
+		while(offset<cluster_addr +CLUSTER_SIZE&&tmp!=-1)
+		{
+			ret2 = GetEntry(&entry);
+			offset += abs(ret);
+			if(ret2 > 0)
+			{
+				printf("the directory isn't empty\n");
+				fd_cd("..");
+				return -1;	
+			}
+		}
+		fd_cd("..");
+	}
+	
+	
+	
+		
 	/*清除fat表项*/
 	seed = pentry->FirstCluster;
+
+
+
 	while((next = GetFatCluster(seed))!=0xffff)
 	{
 		ClearFatCluster(seed);
@@ -500,13 +533,13 @@ int fd_df(char *filename,int key)
 	/*清除目录表项*/
 	c=0xe5;//e5表示该目录项可用
 
+
 	//现将文件指针定位到目录处，0x20等价于32，因为每条目录表项32bytes
 	if(lseek(fd,ret-0x20,SEEK_SET)<0)
 		perror("lseek fd_df failed");
 	//标记目录表项可用
 	if(write(fd,&c,1)<0)
 		perror("write failed");  
-
 	/*
         这段话在源程序中存在，但助教感觉这句话是错的。。。o(╯□╰)o
         如果发现助教的感觉错了赶紧告诉助教，有加分！！
@@ -516,6 +549,7 @@ int fd_df(char *filename,int key)
 	perror("write failed");*/
 
 	free(pentry);
+
 	if(WriteFat()<0)
 		exit(1);
 	return 1;
@@ -871,9 +905,7 @@ int fd_mkdir(char *filename)
 					if(write(fd,&c,DIR_ENTRY_SIZE)<0)
 						perror("write failed");
 
-
-
-
+				
 					free(pentry);
 					if(WriteFat()<0)
 						exit(1);
