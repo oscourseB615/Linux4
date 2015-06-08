@@ -864,7 +864,7 @@ int fd_mkdir(char *filename)
 					/*还有很多内容并没有写入，大家请自己补充*/
 					/*而且这里还有个问题，就是对于目录表项的值为00的情况处理的不好*/
 					if(lseek(fd,offset,SEEK_SET)<0)
-						perror("lseek fd_mkdir failed");
+						perror("lseek fd_cf failed");
 					if(write(fd,&c,DIR_ENTRY_SIZE)<0)
 						perror("write failed");
 
@@ -932,7 +932,7 @@ int fd_mkdir(char *filename)
 					c[31] = ((size& 0xff000000)>>24);
 
 					if(lseek(fd,offset,SEEK_SET)<0)
-						perror("lseek fd_mkdir failed");
+						perror("lseek fd_cf failed");
 					if(write(fd,&c,DIR_ENTRY_SIZE)<0)
 						perror("write failed");
 

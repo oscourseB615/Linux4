@@ -81,6 +81,7 @@ int fd_ls();
 int fd_cd(char *dir);
 int fd_df(char *file_name);
 int fd_cf(char *file_name,int size);
+int fd_mkdir(char *file_name);
 
 void findDate(unsigned short *year,
 			  unsigned short *month,
