@@ -465,7 +465,7 @@ int ReadFat()
 *返回值：1，成功；-1，失败
 *功能;删除当前目录下的文件
 */
-int fd_df(char *filename)
+int fd_df(char *filename,int key)
 {
 	struct Entry *pentry;
 	int ret;
@@ -475,10 +475,13 @@ int fd_df(char *filename)
 	pentry = (struct Entry*)malloc(sizeof(struct Entry));
 
 	/*扫描当前目录查找文件*/
-	ret = ScanEntry(filename,pentry,0);
+	ret = ScanEntry(filename,pentry,key);
 	if(ret<0)
 	{
-		printf("no such file\n");
+		if(key==0)		
+			printf("no such file\n");
+		else
+			printf("no such directory\n");
 		free(pentry);
 		return -1;
 	}
@@ -968,7 +971,7 @@ int fd_mkdir(char *filename)
 
 void do_usage()
 {
-	printf("please input a command, including followings:\n\tls\t\t\tlist all files\n\tcd <dir>\t\tchange direcotry\n\tcf <filename> <size>\tcreate a file\n\tdf <file>\t\tdelete a file\n\tmkdir <dir>\t\tcreate a directory\n\texit\t\t\texit this system\n");
+	printf("please input a command, including followings:\n\tls\t\t\tlist all files\n\tcd <dir>\t\tchange direcotry\n\tcf <filename> <size>\tcreate a file\n\tdf <file>\t\tdelete a file\n\tmkdir <dir>\t\tcreate a directory\n\trmdir <dir>\t\tdelete a directory\n\texit\t\t\texit this system\n");
 }
 
 
@@ -1000,7 +1003,12 @@ int main()
 		else if(strcmp(input, "df") == 0)
 		{
 			scanf("%s", name);
-			fd_df(name);
+			fd_df(name,0);
+		}
+		else if(strcmp(input, "rmdir") == 0)
+		{
+			scanf("%s", name);
+			fd_df(name,1);
 		}
 		else if(strcmp(input, "cf") == 0)
 		{

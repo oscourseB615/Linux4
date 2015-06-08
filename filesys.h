@@ -79,7 +79,7 @@ struct Entry{
 //下面这些函数的作用我写到.c文件中了。
 int fd_ls();
 int fd_cd(char *dir);
-int fd_df(char *file_name);
+int fd_df(char *file_name,int key);
 int fd_cf(char *file_name,int size);
 int fd_mkdir(char *file_name);
 
