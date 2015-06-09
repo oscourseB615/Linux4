@@ -34,6 +34,7 @@
 #define RevByte(low,high) ((high)<<8|(low))
 #define RevWord(lowest,lower,higher,highest) ((highest)<< 24|(higher)<<16|(lower)<<8|lowest) 
 
+
 /*
  *读取BootSector，获取FAT16的格式信息
  *打印启动项记录
@@ -354,8 +355,9 @@ int ScanEntry (char *entryname,struct Entry *pentry,int mode)
 int fd_cd(char *dir)
 {
 	struct Entry *pentry;
-	int ret,i;
-
+	int ret,i,k;
+	char name[255];
+	char tmp[255];
 	if(!strcmp(dir,"."))
 	{
 		return 1;
@@ -370,10 +372,47 @@ int fd_cd(char *dir)
 		dirno--; 
 		return 1;
 	}
+	/*to root*/
+	if(!strcmp(dir,"/") )
+	{
+		while(curdir!=NULL)
+		{
+			curdir = fatherdir[dirno];
+			dirno--; 
+		}
+		return 1;
+	}
+
+	if(dir[0] == '/')
+	{
+		fd_cd("/");
+		i=1;
+	}
+	else 
+		i=0;
+	for(;i<strlen(dir);i++)
+	{
+		k=0;		
+		while(dir[i]!='\0')
+		{	
+			if(dir[i]=='/'||dir[i]=='\0'||i>=strlen(dir))
+				break;
+			else	
+			{				
+				tmp[k]=dir[i];
+				i++;
+				k++;		
+			}
+		}
+		tmp[k]='\0';
+	
+
+	
 	//注意此处有内存泄露
 	pentry = (struct Entry*)malloc(sizeof(struct Entry));
 	
-	ret = ScanEntry(dir,pentry,1);
+	ret = ScanEntry(tmp,pentry,1);
+
 	if(ret < 0)
 	{
 		printf("no such dir\n");
@@ -384,7 +423,7 @@ int fd_cd(char *dir)
 	fatherdir[dirno] = curdir;
 	curdir = pentry;	
 
-
+}
 
 	return 1;
 }
