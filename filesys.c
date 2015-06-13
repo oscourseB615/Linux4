@@ -1061,6 +1061,11 @@ int main()
 	{
 		printf(">");
 		scanf("%s",input);
+		if(system("rm -f /dev/sdb1/*~")<0)
+{
+}
+		system("sudo umount /dev/sdb1");
+		system("sudo mount -o umask=000 data /dev/sdb1");
 
 		if (strcmp(input, "exit") == 0)
 			break;
@@ -1098,6 +1103,9 @@ int main()
 		}
 		else
 			do_usage();
+		
+		system("sudo umount /dev/sdb1");
+		system("sudo mount -o umask=000 data /dev/sdb1");
 	}	
 
 	return 0;
