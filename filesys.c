@@ -407,7 +407,18 @@ int fd_cd(char *dir)
 		tmp[k]='\0';
 	
 
-	
+	if(!strcmp(tmp,".") && curdir!=NULL)
+	{
+	  
+		continue;
+	}
+	else if(!strcmp(tmp,"..") && curdir!=NULL)
+	{
+		curdir = fatherdir[dirno];
+		dirno--; 
+	}
+	else
+	{
 	//注意此处有内存泄露
 	pentry = (struct Entry*)malloc(sizeof(struct Entry));
 	
@@ -422,8 +433,9 @@ int fd_cd(char *dir)
 	dirno ++;
 	fatherdir[dirno] = curdir;
 	curdir = pentry;	
+	}
 
-}
+	}
 
 	return 1;
 }
@@ -605,7 +617,7 @@ int fd_cf(char *filename,int size)
 {
 
 	struct Entry *pentry;
-	int ret,i=0,cluster_addr,offset;
+	int ret,ret1=0,ret2=0,i=0,cluster_addr,offset;
 	unsigned short cluster,clusterno[100],date=0,clock=0;
 	unsigned char c[DIR_ENTRY_SIZE];
 	int index,clustersize;
@@ -626,7 +638,12 @@ int fd_cf(char *filename,int size)
 		clustersize ++;
 
 	//扫描根目录，是否已存在该文件名
-	ret = ScanEntry(filename,pentry,0);
+	ret1 = ScanEntry(filename,pentry,0);
+	ret2 = ScanEntry(filename,pentry,1);
+	if(ret1<0&&ret2<0)
+		ret = -1;
+	else
+		ret = 0;
 	if (ret<0)
 	{
 		/*查询fat表，找到空白簇，保存在clusterno[]中*/
@@ -827,6 +844,7 @@ int fd_mkdir(char *filename)
 
 	struct Entry *pentry;
 	int ret,i=0,cluster_addr,offset,size = 4096;
+	int ret1,ret2;
 	unsigned short cluster,clusterno[100],date=0,clock=0;
 	unsigned char c[DIR_ENTRY_SIZE];
 	int index,clustersize;
@@ -847,7 +865,12 @@ int fd_mkdir(char *filename)
 		clustersize ++;
 
 	//扫描根目录，是否已存在该文件名
-	ret = ScanEntry(filename,pentry,0);
+	ret1 = ScanEntry(filename,pentry,0);
+	ret2 = ScanEntry(filename,pentry,1);
+	if(ret1<0&&ret2<0)
+		ret = -1;
+	else
+		ret = 0;
 	if (ret<0)
 	{
 		/*查询fat表，找到空白簇，保存在clusterno[]中*/
@@ -1061,11 +1084,11 @@ int main()
 	{
 		printf(">");
 		scanf("%s",input);
-		if(system("rm -f /dev/sdb1/*~")<0)
+		/*if(system("rm -f /dev/sdb1/*~")<0)
 {
 }
 		system("sudo umount /dev/sdb1");
-		system("sudo mount -o umask=000 data /dev/sdb1");
+		system("sudo mount -o umask=000 data /dev/sdb1");*/
 
 		if (strcmp(input, "exit") == 0)
 			break;
@@ -1104,8 +1127,8 @@ int main()
 		else
 			do_usage();
 		
-		system("sudo umount /dev/sdb1");
-		system("sudo mount -o umask=000 data /dev/sdb1");
+		/*system("sudo umount /dev/sdb1");
+		system("sudo mount -o umask=000 data /dev/sdb1");*/
 	}	
 
 	return 0;
